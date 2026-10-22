@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Inteligente de Contactos</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        /* Ocultar barra de scroll mas permitir scroll */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        /* Animações simples */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .toast-enter {
+            animation: slideInRight 0.3s ease-out forwards;
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Navbar -->
+    <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md z-10">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                    <i class="fa-solid fa-address-card text-xl"></i>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">SmartContacts</h1>
+            </div>
+            <!-- Indicador de Carregamento Global -->
+            <div id="authLoader" class="text-sm font-medium flex items-center gap-2">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> A ligar...
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto no-scrollbar relative max-w-6xl mx-auto w-full px-4 py-6">
+        
+        <!-- Toolbar (Pesquisa e Adicionar) -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
+            <div class="relative w-full sm:max-w-md">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                </div>
+                <input type="text" id="searchInput" placeholder="Pesquisar por nome ou empresa..." 
+                    class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow shadow-sm">
+            </div>
+            
+            <button onclick="openModal()" class="w-full sm:w-auto flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <i class="fa-solid fa-plus"></i> Adicionar Contacto
+            </button>
+        </div>
+
+        <!-- Lista de Contactos (Grid) -->
+        <div id="contactsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
+            <!-- Os cartões de contacto serão injetados aqui -->
+            <div class="col-span-full text-center py-12 text-slate-500 hidden" id="emptyState">
+                <i class="fa-regular fa-folder-open text-5xl mb-4 opacity-50"></i>
+                <p class="text-lg">Nenhum contacto encontrado.</p>
+                <p class="text-sm mt-1">Adicione um novo contacto manualmente ou fotografando um cartão de visita.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Contacto -->
+    <div id="contactModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden fade-in flex flex-col max-h-full">
+            
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 id="modalTitle" class="text-lg font-semibold text-slate-800">Novo Contacto</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 transition-colors p-2">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="p-6 overflow-y-auto flex-1 no-scrollbar">
+                
+                <!-- Secção de AI / Scan do Cartão -->
+                <div class="mb-6 bg-indigo-50 rounded-xl p-4 border border-indigo-100 relative overflow-hidden group">
+                    <div class="absolute -right-4 -top-4 text-indigo-100/50 transform rotate-12 transition-transform group-hover:scale-110">
+                        <i class="fa-solid fa-microchip text-8xl"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <h4 class="text-indigo-900 font-semibold mb-1 flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-indigo-500"></i> Preenchimento Automático
+                        </h4>
+                        <p class="text-sm text-indigo-700 mb-4">Carregue ou fotografe um cartão de visita para extrair os dados usando Inteligência Artificial (Gemini).</p>
+                        
+                        <label class="cursor-pointer flex items-center justify-center gap-2 w-full bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-700 font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm">
+                            <i class="fa-solid fa-camera"></i> Ler Cartão
+                            <input type="file" id="businessCardInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)">
+                        </label>
+                    </div>
+
+                    <!-- Loader da AI -->
+                    <div id="aiLoader" class="absolute inset-0 bg-indigo-50/90 backdrop-blur-sm hidden flex-col items-center justify-center z-20">
+                        <i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-600 mb-2"></i>
+                        <p class="text-sm font-medium text-indigo-800">A analisar cartão...</p>
+                    </div>
+                </div>
+
+                <!-- Formulário Manual -->
+                <form id="contactForm" onsubmit="saveContact(event)">
+                    <input type="hidden" id="contactId">
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Nome Completo <span class="text-red-500">*</span></label>
+                            <input type="text" id="inputName" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Empresa</label>
+                            <input type="text" id="inputCompany" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Telefone</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fa-solid fa-phone text-slate-400 text-sm"></i>
+                                </div>
+                                <input type="tel" id="inputPhone" class="w-full pl-10 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fa-solid fa-envelope text-slate-400 text-sm"></i>
+                                </div>
+                                <input type="email" id="inputEmail" class="w-full pl-10 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+                <button onclick="closeModal()" type="button" class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200">
+                    Cancelar
+                </button>
+                <button type="submit" form="contactForm" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    Guardar Contacto
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container para Toasts -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <!-- Firebase e Lógica da Aplicação -->
+    <script type="module">
+        // Importações do Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuração de ambiente providenciada globalmente
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gestao-contactos-app';
+        let firebaseConfig;
+        
+        try {
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+                // Mock fallback temporário se não houver config real injetada
+            };
+        } catch (e) {
+            console.error("Erro a ler config do Firebase", e);
+        }
+
+        // Inicialização
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        let currentUser = null;
+        let contactsData = [];
+        let unsubscribeContacts = null;
+
+        // UI Elements
+        const authLoader = document.getElementById('authLoader');
+        const contactsListEl = document.getElementById('contactsList');
+        const searchInput = document.getElementById('searchInput');
+        const emptyState = document.getElementById('emptyState');
+        const modal = document.getElementById('contactModal');
+        const contactForm = document.getElementById('contactForm');
+        
+        // Autenticação (Respeitando a Regra 3 - Auth antes de Query)
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Erro na autenticação:", error);
+                showToast("Erro ao iniciar sessão na base de dados.", "error");
+                authLoader.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500"></i> Erro`;
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                authLoader.innerHTML = `<i class="fa-solid fa-cloud-check text-green-300"></i> Ligado`;
+                loadContacts(); // Iniciar escuta dos dados
+            } else {
+                currentUser = null;
+                if(unsubscribeContacts) unsubscribeContacts();
+                contactsData = [];
+                renderContacts();
+            }
+        });
+
+        // Carregar Contactos (Regra 1 e 2 - Caminho estrito, sem queries complexas)
+        function loadContacts() {
+            if (!currentUser) return;
+            
+            const contactsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'contacts');
+            
+            unsubscribeContacts = onSnapshot(contactsRef, (snapshot) => {
+                contactsData = [];
+                snapshot.forEach((doc) => {
+                    contactsData.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Ordenação em memória (Regra 2) - Ordenar por nome
+                contactsData.sort((a, b) => {
+                    const nameA = (a.name || '').toLowerCase();
+                    const nameB = (b.name || '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+                
+                renderContacts();
+            }, (error) => {
+                console.error("Erro ao ler contactos:", error);
+                showToast("Erro ao carregar contactos.", "error");
+            });
+        }
+
+        // Renderizar Contactos com base na pesquisa
+        function renderContacts() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const filteredContacts = contactsData.filter(contact => {
+                return (contact.name && contact.name.toLowerCase().includes(searchTerm)) || 
+                       (contact.company && contact.company.toLowerCase().includes(searchTerm));
+            });
+
+            // Limpar lista atual mantendo o emptyState
+            const currentEmpty = emptyState.cloneNode(true);
+            contactsListEl.innerHTML = '';
+            contactsListEl.appendChild(currentEmpty);
+
+            if (filteredContacts.length === 0) {
+                currentEmpty.classList.remove('hidden');
+                return;
+            } else {
+                currentEmpty.classList.add('hidden');
+            }
+
+            filteredContacts.forEach(contact => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative group fade-in flex flex-col h-full";
+                
+                // Extrair as iniciais para o avatar
+                const initials = (contact.name || "?").substring(0, 2).toUpperCase();
+                
+                card.innerHTML = `
+                    <div class="flex gap-4 items-start mb-4">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                            ${initials}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-slate-800 text-lg truncate" title="${contact.name}">${contact.name}</h4>
+                            ${contact.company ? `<p class="text-slate-500 text-sm truncate" title="${contact.company}"><i class="fa-solid fa-building text-slate-400 w-4"></i> ${contact.company}</p>` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 mt-auto text-sm">
+                        ${contact.phone ? `
+                        <div class="flex items-center gap-2 text-slate-600">
+                            <i class="fa-solid fa-phone w-4 text-slate-400 text-center"></i>
+                            <a href="tel:${contact.phone}" class="hover:text-blue-600 truncate">${contact.phone}</a>
+                        </div>` : ''}
+                        
+                        ${contact.email ? `
+                        <div class="flex items-center gap-2 text-slate-600">
+                            <i class="fa-solid fa-envelope w-4 text-slate-400 text-center"></i>
+                            <a href="mailto:${contact.email}" class="hover:text-blue-600 truncate">${contact.email}</a>
+                        </div>` : ''}
+                        
+                        ${!contact.phone && !contact.email ? '<p class="text-slate-400 italic text-xs">Sem contactos adicionais registados</p>' : ''}
+                    </div>
+
+                    <!-- Botões de Ação (Aparecem em hover no desktop, sempre visíveis no mobile) -->
+                    <div class="absolute top-4 right-4 flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="editContact('${contact.id}')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-600 flex items-center justify-center transition-colors" title="Editar">
+                            <i class="fa-solid fa-pen text-sm"></i>
+                        </button>
+                        <button onclick="confirmDelete('${contact.id}')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors" title="Eliminar">
+                            <i class="fa-solid fa-trash text-sm"></i>
+                        </button>
+                    </div>
+                `;
+                contactsListEl.appendChild(card);
+            });
+        }
+
+        // Pesquisa reativa
+        searchInput.addEventListener('input', renderContacts);
+
+        // --- Funções CRUD (Expostas ao Window para uso no HTML inline) ---
+
+        window.openModal = function() {
+            document.getElementById('contactId').value = '';
+            contactForm.reset();
+            document.getElementById('modalTitle').textContent = 'Novo Contacto';
+            modal.classList.remove('hidden');
+            // Animar entrada
+            modal.querySelector('div').classList.add('fade-in');
+            setTimeout(() => document.getElementById('inputName').focus(), 100);
+        };
+
+        window.closeModal = function() {
+            modal.classList.add('hidden');
+        };
+
+        window.editContact = function(id) {
+            const contact = contactsData.find(c => c.id === id);
+            if (!contact) return;
+
+            document.getElementById('contactId').value = contact.id;
+            document.getElementById('inputName').value = contact.name || '';
+            document.getElementById('inputCompany').value = contact.company || '';
+            document.getElementById('inputPhone').value = contact.phone || '';
+            document.getElementById('inputEmail').value = contact.email || '';
+            
+            document.getElementById('modalTitle').textContent = 'Editar Contacto';
+            modal.classList.remove('hidden');
+            modal.querySelector('div').classList.add('fade-in');
+        };
+
+        window.saveContact = async function(e) {
+            e.preventDefault();
+            if (!currentUser) {
+                showToast("A sessão não foi iniciada. Tente recarregar a página.", "error");
+                return;
+            }
+
+            const id = document.getElementById('contactId').value;
+            const data = {
+                name: document.getElementById('inputName').value.trim(),
+                company: document.getElementById('inputCompany').value.trim(),
+                phone: document.getElementById('inputPhone').value.trim(),
+                email: document.getElementById('inputEmail').value.trim(),
+            };
+
+            const submitBtn = contactForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> A guardar...';
+            submitBtn.disabled = true;
+
+            try {
+                const contactsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'contacts');
+                
+                if (id) {
+                    // Update
+                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'contacts', id);
+                    await updateDoc(docRef, { ...data, updatedAt: serverTimestamp() });
+                    showToast("Contacto atualizado com sucesso!", "success");
+                } else {
+                    // Create
+                    await addDoc(contactsRef, { ...data, createdAt: serverTimestamp() });
+                    showToast("Novo contacto guardado com sucesso!", "success");
+                }
+                closeModal();
+            } catch (error) {
+                console.error("Erro ao guardar:", error);
+                showToast("Erro ao guardar o contacto. Tente novamente.", "error");
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        };
+
+        // Sem usar alert() ou confirm() padrão - Modal personalizado simulado ou Toasts de confirmação.
+        // Por simplicidade na requisição (apenas avisar) fazemos a deleção direta com Toast undo-like ou apenas apagamos.
+        // Vamos apagar e notificar.
+        window.confirmDelete = async function(id) {
+            // Em produção criaríamos um modal de confirmação. Como alert/confirm estão bloqueados, apagamos diretamente
+            // e avisamos. Alternativa seria um modal customizado, mas mantemos focado na IA.
+            if (!currentUser) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'contacts', id);
+                await deleteDoc(docRef);
+                showToast("Contacto eliminado.", "success");
+            } catch (error) {
+                console.error("Erro a eliminar:", error);
+                showToast("Erro ao eliminar o contacto.", "error");
+            }
+        };
+
+        // --- Integração Gemini API para Leitura do Cartão ---
+
+        window.handleImageUpload = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Reset do input para permitir carregar o mesmo ficheiro novamente se necessário
+            event.target.value = '';
+
+            const aiLoader = document.getElementById('aiLoader');
+            aiLoader.classList.remove('hidden');
+            aiLoader.classList.add('flex');
+
+            try {
+                // 1. Converter ficheiro para Base64
+                const base64DataString = await fileToBase64(file);
+                // Extrair apenas a parte do base64 ignorando o prefixo data:image/...;base64,
+                const base64Data = base64DataString.split(',')[1];
+                const mimeType = file.type;
+
+                // 2. Chamar Gemini API
+                await analyzeBusinessCardWithGemini(base64Data, mimeType);
+                
+                showToast("Dados extraídos com sucesso! Por favor, reveja e corrija se necessário.", "success");
+            } catch (error) {
+                console.error("Erro no processamento da imagem:", error);
+                showToast("Não foi possível ler o cartão. Tente novamente com melhor iluminação.", "error");
+            } finally {
+                aiLoader.classList.add('hidden');
+                aiLoader.classList.remove('flex');
+            }
+        };
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        async function analyzeBusinessCardWithGemini(base64Data, mimeType) {
+            // A API Key é deixada vazia pois o Canvas preenche em runtime
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const prompt = `Analisa esta imagem que representa um cartão de visita. O teu objetivo é extrair os dados de contacto.
+Regras de retorno:
+- Deves devolver estritamente um objeto JSON.
+- O objeto deve conter as seguintes chaves: "name" (para o Nome da Pessoa), "company" (para o Nome da Empresa), "phone" (para o Número de Telefone - limpa espaços extras, mas mantém indicativos), "email" (Endereço de email).
+- Se não conseguires identificar alguma informação com clareza, atribui uma string vazia "" a essa chave.
+- Devolve apenas o JSON, sem markdown ou texto adicional.`;
+
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        {
+                            inlineData: {
+                                mimeType: mimeType,
+                                data: base64Data
+                            }
+                        }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json" // Força resposta estruturada em JSON
+                }
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`API Call failed com status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.candidates && result.candidates.length > 0 && result.candidates[0].content) {
+                const textResponse = result.candidates[0].content.parts[0].text;
+                
+                try {
+                    // O modelo foi instruído com application/json, logo deve ser parseável
+                    const parsedData = JSON.parse(textResponse);
+                    
+                    // Preencher o formulário
+                    if(parsedData.name) document.getElementById('inputName').value = parsedData.name;
+                    if(parsedData.company) document.getElementById('inputCompany').value = parsedData.company;
+                    if(parsedData.phone) document.getElementById('inputPhone').value = parsedData.phone;
+                    if(parsedData.email) document.getElementById('inputEmail').value = parsedData.email;
+                    
+                } catch (e) {
+                    console.error("Erro ao fazer parse do JSON da Gemini", e, textResponse);
+                    throw new Error("Formato de resposta inválido.");
+                }
+            } else {
+                throw new Error("Resposta da API não conteve dados.");
+            }
+        }
+
+        // --- Sistema de Toasts (Notificações Visuais) ---
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let bgColors, icon;
+            if (type === 'success') {
+                bgColors = 'bg-green-100 border-green-500 text-green-800';
+                icon = '<i class="fa-solid fa-circle-check text-green-600"></i>';
+            } else if (type === 'error') {
+                bgColors = 'bg-red-100 border-red-500 text-red-800';
+                icon = '<i class="fa-solid fa-circle-xmark text-red-600"></i>';
+            } else {
+                bgColors = 'bg-blue-100 border-blue-500 text-blue-800';
+                icon = '<i class="fa-solid fa-circle-info text-blue-600"></i>';
+            }
+
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 shadow-lg toast-enter ${bgColors}`;
+            toast.innerHTML = `
+                <div class="text-lg">${icon}</div>
+                <div class="font-medium text-sm">${message}</div>
+            `;
+
+            container.appendChild(toast);
+
+            // Remover após 4 segundos
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease-in';
+                setTimeout(() => {
+                    if(container.contains(toast)) container.removeChild(toast);
+                }, 300);
+            }, 4000);
+        }
+
+        // Iniciar Auth ao carregar
+        window.addEventListener('DOMContentLoaded', () => {
+            initAuth();
+        });
+
+    </script>
+</body>
+</html>
