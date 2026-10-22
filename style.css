@@ -1,0 +1,4 @@
+.modal-active {
+    display: flex !important;
+    opacity: 1 !important;
+}
