@@ -1,706 +1,125 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartContacts CRM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Contactos Pro</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 900: '#1e3a8a' }
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        .fade-in { animation: fadeIn 0.2s ease-out; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.98); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        
-        .toast-enter { animation: slideInBottom 0.3s ease-out forwards; }
-        @keyframes slideInBottom {
-            from { opacity: 0; transform: translateY(100%); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Efeito visual para a câmara (Scanner frame) */
-        .scanner-guide {
-            position: absolute;
-            inset: 10%;
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 12px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
-            pointer-events: none;
-        }
-        .scanner-guide::before, .scanner-guide::after {
-            content: ''; position: absolute; width: 30px; height: 30px; border-color: #3b82f6; border-style: solid;
-        }
-        .scanner-guide::before { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 12px; }
-        .scanner-guide::after { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 12px; }
-    </style>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="text-slate-800 h-screen flex flex-col overflow-hidden antialiased">
-
-    <!-- Top Navigation -->
-    <nav class="bg-white border-b border-slate-200 shadow-sm z-10 flex-shrink-0">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="bg-brand-600 text-white p-2 rounded-lg flex items-center justify-center">
-                    <i class="fa-solid fa-address-book text-lg"></i>
-                </div>
-                <span class="text-xl font-bold text-slate-900 tracking-tight">SmartContacts</span>
-            </div>
-            <div class="flex items-center gap-4 text-sm font-medium text-slate-600">
-                <span id="dbStatus" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-full">
-                    <span class="w-2 h-2 rounded-full bg-amber-500"></span> Local Storage (Mock)
-                </span>
-                <div class="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-500">
-                    <i class="fa-regular fa-user"></i>
-                </div>
-            </div>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col">
+    <!-- Cabeçalho -->
+    <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                Contactos DB
+            </h1>
+            <button id="btnNewContact" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Novo Contacto
+            </button>
         </div>
-    </nav>
+    </header>
 
-    <!-- Main Workspace -->
-    <main class="flex-1 overflow-y-auto w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
-        
-        <!-- Action Header -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-            <div>
-                <h1 class="text-2xl font-bold text-slate-900">Directório de Contactos</h1>
-                <p class="text-sm text-slate-500 mt-1">Gira os contactos profissionais e leads de negócio.</p>
-            </div>
-            
-            <div class="flex w-full sm:w-auto items-center gap-3">
-                <div class="relative flex-1 sm:w-72">
-                    <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                    <input type="text" id="searchInput" placeholder="Pesquisar..." 
-                        class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow outline-none">
-                </div>
-                <button onclick="uiManager.openContactModal()" class="flex-shrink-0 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-brand-500">
-                    <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Novo Contacto</span>
-                </button>
-            </div>
+    <!-- Conteúdo Principal -->
+    <main class="flex-1 max-w-5xl w-full mx-auto p-4 flex flex-col gap-6">
+        <!-- Barra de Pesquisa -->
+        <div class="relative">
+            <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" id="searchInput" placeholder="Pesquisar por nome ou empresa..." class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
         </div>
 
-        <!-- Contacts Grid -->
-        <div id="contactsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-24">
-            <!-- Loading State -->
-            <div class="col-span-full flex flex-col items-center justify-center py-20 text-slate-400" id="loadingState">
-                <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 text-brand-600"></i>
-                <p>A carregar dados...</p>
+        <!-- Lista -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1">
+            <div id="loadingIndicator" class="p-8 text-center text-slate-500">A conectar à base de dados...</div>
+            <ul id="contactList" class="divide-y divide-slate-100 hidden"></ul>
+            <div id="emptyState" class="hidden p-12 text-center flex flex-col items-center justify-center">
+                <svg class="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                <p class="text-slate-500 text-lg font-medium">Nenhum contacto na base de dados</p>
+                <p class="text-slate-400 text-sm mt-1">Adicione um contacto manualmente ou faça leitura pela câmara.</p>
             </div>
-            <!-- Empty State -->
-            <div class="col-span-full hidden flex-col items-center justify-center py-20 text-slate-500 bg-white rounded-xl border border-dashed border-slate-300" id="emptyState">
-                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
-                    <i class="fa-regular fa-address-card text-2xl"></i>
-                </div>
-                <h3 class="text-lg font-medium text-slate-900">Sem contactos</h3>
-                <p class="text-sm mt-1 mb-4 text-center max-w-sm">Ainda não registou nenhum contacto ou a pesquisa não encontrou resultados.</p>
-                <button onclick="uiManager.openContactModal()" class="text-brand-600 font-medium hover:text-brand-700 text-sm flex items-center gap-1">
-                    Adicionar o primeiro contacto <i class="fa-solid fa-arrow-right"></i>
-                </button>
-            </div>
-            <!-- Cards will be injected here by JS -->
         </div>
-
     </main>
 
-    <!-- Modal: Contact Form -->
-    <div id="contactModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 hidden items-center justify-center p-4 sm:p-6">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden fade-in flex flex-col max-h-[90vh]">
-            
-            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                <h2 id="modalTitle" class="text-lg font-semibold text-slate-800">Novo Contacto</h2>
-                <button onclick="uiManager.closeContactModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors">
-                    <i class="fa-solid fa-xmark"></i>
+    <!-- Modal Form (Janela Flutuante) -->
+    <div id="contactModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h2 id="modalTitle" class="text-lg font-bold text-slate-800">Adicionar Contacto</h2>
+                <button id="btnCloseModal" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-
-            <div class="p-6 overflow-y-auto flex-1 no-scrollbar bg-slate-50/50">
-                
+            
+            <div class="p-6 overflow-y-auto flex-1">
                 <!-- Smart Scan Section -->
-                <div class="mb-6 bg-white border border-brand-200 rounded-xl p-5 shadow-sm">
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <h3 class="text-sm font-semibold text-brand-900 flex items-center gap-2">
-                                <i class="fa-solid fa-wand-magic-sparkles text-brand-500"></i> IA Smart Scan
-                            </h3>
-                            <p class="text-xs text-slate-500 mt-1 max-w-sm">Capture uma foto do cartão de visita. A nossa IA preencherá automaticamente os dados do formulário.</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button type="button" onclick="cameraManager.openCamera()" class="flex flex-col items-center justify-center bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 w-16 h-16 rounded-lg transition-colors focus:ring-2 focus:ring-brand-500 outline-none">
-                                <i class="fa-solid fa-camera text-xl mb-1"></i>
-                                <span class="text-[10px] font-medium uppercase">Câmara</span>
-                            </button>
-                            <label class="cursor-pointer flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 w-16 h-16 rounded-lg transition-colors focus-within:ring-2 focus-within:ring-slate-500 outline-none">
-                                <i class="fa-solid fa-image text-xl mb-1"></i>
-                                <span class="text-[10px] font-medium uppercase">Ficheiro</span>
-                                <input type="file" id="fileUpload" accept="image/*" class="hidden" onchange="aiManager.handleFileUpload(event)">
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Loader IA -->
-                    <div id="aiProcessingState" class="hidden mt-4 bg-brand-50 rounded-lg p-3 border border-brand-100 flex items-center gap-3">
-                        <i class="fa-solid fa-circle-notch fa-spin text-brand-600 text-lg"></i>
-                        <span class="text-sm text-brand-800 font-medium" id="aiStatusText">A analisar imagem...</span>
+                <div class="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                    <p class="text-sm text-blue-800 font-medium mb-3">Leitura de Cartão de Visita</p>
+                    <div class="flex gap-2">
+                        <button id="btnOpenCamera" class="flex-1 bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            Abrir Câmara
+                        </button>
+                        <label class="flex-1 bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            Ficheiro
+                            <input type="file" id="fileInput" accept="image/*" class="hidden">
+                        </label>
                     </div>
                 </div>
 
-                <!-- Form -->
-                <form id="contactForm" onsubmit="appController.handleSaveContact(event)" class="space-y-4">
+                <!-- Visão da Câmara -->
+                <div id="cameraContainer" class="hidden mb-6 rounded-xl overflow-hidden bg-black relative">
+                    <video id="videoElement" autoplay playsinline class="w-full h-48 object-cover"></video>
+                    <button id="btnCapture" class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white text-black px-4 py-2 rounded-full font-bold shadow-lg text-sm">Tirar Foto</button>
+                    <button id="btnCloseCamera" class="absolute top-2 right-2 text-white bg-black/50 p-1 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+
+                <!-- Indicador de IA -->
+                <div id="aiStatus" class="hidden mb-4 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg flex items-center gap-2">
+                    <svg class="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    A analisar dados do cartão pela IA...
+                </div>
+
+                <form id="contactForm" class="flex flex-col gap-4">
                     <input type="hidden" id="contactId">
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="col-span-1 md:col-span-2">
-                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Nome Completo *</label>
-                            <input type="text" id="inputName" required placeholder="Ex: João Silva" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-shadow bg-white">
-                        </div>
-                        
-                        <div class="col-span-1 md:col-span-2">
-                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Empresa</label>
-                            <div class="relative">
-                                <i class="fa-regular fa-building absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                <input type="text" id="inputCompany" placeholder="Ex: TechCorp Lda." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-shadow bg-white">
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Telefone</label>
-                            <div class="relative">
-                                <i class="fa-solid fa-phone absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                <input type="tel" id="inputPhone" placeholder="Ex: +351 912 345 678" class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-shadow bg-white">
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Email</label>
-                            <div class="relative">
-                                <i class="fa-regular fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                <input type="email" id="inputEmail" placeholder="Ex: joao@techcorp.pt" class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-shadow bg-white">
-                            </div>
-                        </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Nome *</label>
+                        <input type="text" id="name" required class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Empresa</label>
+                        <input type="text" id="company" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Telefone</label>
+                        <input type="tel" id="phone" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                        <input type="email" id="email" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
                 </form>
             </div>
-
-            <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
-                <button type="button" onclick="uiManager.closeContactModal()" class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200">
-                    Cancelar
-                </button>
-                <button type="submit" form="contactForm" id="btnSaveContact" class="px-6 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900">
-                    Guardar Registo
+            
+            <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <button id="btnCancel" class="px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors text-sm">Cancelar</button>
+                <button id="btnSave" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm flex items-center gap-2">
+                    Guardar Contacto
                 </button>
             </div>
         </div>
     </div>
-
-    <!-- Modal: Camera View -->
-    <div id="cameraModal" class="fixed inset-0 bg-black z-50 hidden flex-col">
-        <!-- Header Câmara -->
-        <div class="absolute top-0 inset-x-0 p-4 flex justify-between items-center z-10 bg-gradient-to-b from-black/70 to-transparent">
-            <h3 class="text-white font-medium text-shadow">Digitalizar Cartão</h3>
-            <button onclick="cameraManager.closeCamera()" class="text-white bg-black/40 rounded-full w-10 h-10 flex items-center justify-center hover:bg-black/60 transition">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-        </div>
-
-        <!-- Vídeo Viewport -->
-        <div class="relative flex-1 w-full bg-black overflow-hidden flex items-center justify-center">
-            <video id="cameraVideo" autoplay playsinline class="w-full h-full object-cover"></video>
-            <div class="scanner-guide"></div>
-            <!-- Canvas escondido para capturar a frame -->
-            <canvas id="cameraCanvas" class="hidden"></canvas>
-        </div>
-
-        <!-- Controlos Base Câmara -->
-        <div class="absolute bottom-0 inset-x-0 pb-10 pt-4 bg-gradient-to-t from-black to-transparent flex justify-center items-center gap-8">
-            <button onclick="cameraManager.switchCamera()" class="text-white bg-white/20 rounded-full w-12 h-12 flex items-center justify-center hover:bg-white/30 transition backdrop-blur-md">
-                <i class="fa-solid fa-camera-rotate"></i>
-            </button>
-            
-            <button onclick="cameraManager.capturePhoto()" class="w-20 h-20 rounded-full border-4 border-white/50 flex items-center justify-center focus:outline-none hover:scale-105 transition-transform">
-                <div class="w-16 h-16 bg-white rounded-full"></div>
-            </button>
-            
-            <!-- Filler para manter botão central alinhado -->
-            <div class="w-12"></div> 
-        </div>
-    </div>
-
-    <!-- Toast Notifications Container -->
-    <div id="toastContainer" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center"></div>
-
-    <script type="module">
-        /**
-         * ==========================================
-         * 1. DATABASE LAYER (MOCK / SUPABASE READY)
-         * ==========================================
-         * Encapsulamos a lógica para facilitar a futura migração para Supabase.
-         */
-        const MOCK_STORAGE_KEY = 'smartcontacts_db';
-
-        const dbLayer = {
-            async fetchContactsFromDB() {
-                // TODO: Replace with Supabase select
-                // const { data, error } = await supabase.from('contacts').select('*').order('name');
-                // if (error) throw error; return data;
-                
-                return new Promise(resolve => {
-                    setTimeout(() => {
-                        const raw = localStorage.getItem(MOCK_STORAGE_KEY);
-                        let data = raw ? JSON.parse(raw) : [];
-                        // Sort by name A-Z
-                        data.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-                        resolve(data);
-                    }, 400); // Simulate network latency
-                });
-            },
-
-            async insertContactToDB(contactData) {
-                // TODO: Replace with Supabase insert
-                // const { data, error } = await supabase.from('contacts').insert([contactData]).select();
-                // if (error) throw error; return data[0];
-                
-                return new Promise(resolve => {
-                    const contacts = JSON.parse(localStorage.getItem(MOCK_STORAGE_KEY) || '[]');
-                    const newContact = { 
-                        ...contactData, 
-                        id: crypto.randomUUID(), 
-                        created_at: new Date().toISOString() 
-                    };
-                    contacts.push(newContact);
-                    localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(contacts));
-                    resolve(newContact);
-                });
-            },
-
-            async updateContactInDB(id, contactData) {
-                // TODO: Replace with Supabase update
-                // const { data, error } = await supabase.from('contacts').update(contactData).eq('id', id).select();
-                // if (error) throw error; return data[0];
-                
-                return new Promise((resolve, reject) => {
-                    const contacts = JSON.parse(localStorage.getItem(MOCK_STORAGE_KEY) || '[]');
-                    const index = contacts.findIndex(c => c.id === id);
-                    if (index === -1) return reject(new Error('Contact not found'));
-                    
-                    contacts[index] = { ...contacts[index], ...contactData, updated_at: new Date().toISOString() };
-                    localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(contacts));
-                    resolve(contacts[index]);
-                });
-            },
-
-            async deleteContactFromDB(id) {
-                // TODO: Replace with Supabase delete
-                // const { error } = await supabase.from('contacts').delete().eq('id', id);
-                // if (error) throw error; return true;
-                
-                return new Promise(resolve => {
-                    let contacts = JSON.parse(localStorage.getItem(MOCK_STORAGE_KEY) || '[]');
-                    contacts = contacts.filter(c => c.id !== id);
-                    localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(contacts));
-                    resolve(true);
-                });
-            }
-        };
-
-        /**
-         * ==========================================
-         * 2. APPLICATION CONTROLLER
-         * ==========================================
-         */
-        const appState = {
-            contacts: [],
-            searchTerm: ''
-        };
-
-        const appController = {
-            async init() {
-                await this.loadData();
-                document.getElementById('searchInput').addEventListener('input', (e) => {
-                    appState.searchTerm = e.target.value.toLowerCase();
-                    uiManager.renderGrid();
-                });
-            },
-
-            async loadData() {
-                uiManager.showLoading(true);
-                try {
-                    appState.contacts = await dbLayer.fetchContactsFromDB();
-                    uiManager.renderGrid();
-                } catch (error) {
-                    console.error("Failed to load contacts:", error);
-                    uiManager.showToast("Erro ao carregar dados.", "error");
-                } finally {
-                    uiManager.showLoading(false);
-                }
-            },
-
-            async handleSaveContact(e) {
-                e.preventDefault();
-                const form = e.target;
-                const btnSave = document.getElementById('btnSaveContact');
-                const id = document.getElementById('contactId').value;
-                
-                const data = {
-                    name: document.getElementById('inputName').value.trim(),
-                    company: document.getElementById('inputCompany').value.trim(),
-                    phone: document.getElementById('inputPhone').value.trim(),
-                    email: document.getElementById('inputEmail').value.trim()
-                };
-
-                const originalBtnText = btnSave.innerHTML;
-                btnSave.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Guardar...';
-                btnSave.disabled = true;
-
-                try {
-                    if (id) {
-                        await dbLayer.updateContactInDB(id, data);
-                        uiManager.showToast("Contacto atualizado.", "success");
-                    } else {
-                        await dbLayer.insertContactToDB(data);
-                        uiManager.showToast("Contacto criado com sucesso.", "success");
-                    }
-                    await this.loadData();
-                    uiManager.closeContactModal();
-                } catch (error) {
-                    console.error("Save error:", error);
-                    uiManager.showToast("Erro ao guardar. Tente novamente.", "error");
-                } finally {
-                    btnSave.innerHTML = originalBtnText;
-                    btnSave.disabled = false;
-                }
-            },
-
-            async handleDelete(id) {
-                // UI Modal mock (Since we cannot use alert/confirm)
-                // Implementando exclusão direta com notificação por restrição da framework, 
-                // Num caso real criaríamos um modal de confirmação.
-                try {
-                    await dbLayer.deleteContactFromDB(id);
-                    uiManager.showToast("Contacto removido permanentemente.", "info");
-                    await this.loadData();
-                } catch (error) {
-                    uiManager.showToast("Erro ao eliminar.", "error");
-                }
-            }
-        };
-
-        /**
-         * ==========================================
-         * 3. UI MANAGER
-         * ==========================================
-         */
-        const uiManager = {
-            renderGrid() {
-                const container = document.getElementById('contactsContainer');
-                const emptyState = document.getElementById('emptyState');
-                const loadingState = document.getElementById('loadingState');
-                
-                // Clear existing cards
-                Array.from(container.children).forEach(child => {
-                    if (child.id !== 'emptyState' && child.id !== 'loadingState') {
-                        container.removeChild(child);
-                    }
-                });
-
-                const filtered = appState.contacts.filter(c => 
-                    (c.name || '').toLowerCase().includes(appState.searchTerm) || 
-                    (c.company || '').toLowerCase().includes(appState.searchTerm)
-                );
-
-                if (filtered.length === 0) {
-                    emptyState.style.display = 'flex';
-                } else {
-                    emptyState.style.display = 'none';
-                    filtered.forEach(contact => {
-                        container.appendChild(this.createCard(contact));
-                    });
-                }
-            },
-
-            createCard(contact) {
-                const div = document.createElement('div');
-                div.className = "bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all fade-in flex flex-col h-full group relative overflow-hidden";
-                
-                // Avatar background color determinant based on initial
-                const colors = ['bg-blue-100 text-blue-700', 'bg-indigo-100 text-indigo-700', 'bg-purple-100 text-purple-700', 'bg-teal-100 text-teal-700'];
-                const initial = (contact.name || "?").charAt(0).toUpperCase();
-                const colorClass = colors[initial.charCodeAt(0) % colors.length] || colors[0];
-
-                div.innerHTML = `
-                    <div class="absolute top-0 right-0 p-4 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity flex gap-1.5 z-10">
-                        <button onclick="window.editTrigger('${contact.id}')" class="w-8 h-8 rounded-md bg-white border border-slate-200 text-slate-500 hover:text-brand-600 hover:border-brand-300 flex items-center justify-center transition-colors shadow-sm" title="Editar">
-                            <i class="fa-solid fa-pen text-xs"></i>
-                        </button>
-                        <button onclick="window.deleteTrigger('${contact.id}')" class="w-8 h-8 rounded-md bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-300 flex items-center justify-center transition-colors shadow-sm" title="Eliminar">
-                            <i class="fa-solid fa-trash text-xs"></i>
-                        </button>
-                    </div>
-
-                    <div class="flex items-start gap-4 mb-4 pt-1">
-                        <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0 ${colorClass}">
-                            ${initial}
-                        </div>
-                        <div class="flex-1 min-w-0 pr-12">
-                            <h3 class="font-semibold text-slate-900 text-base truncate" title="${contact.name}">${contact.name || 'Sem Nome'}</h3>
-                            <p class="text-slate-500 text-sm truncate flex items-center gap-1.5 mt-0.5" title="${contact.company}">
-                                <i class="fa-regular fa-building text-xs"></i> ${contact.company || '-'}
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-auto pt-4 border-t border-slate-100 space-y-2.5">
-                        ${contact.phone ? `
-                            <div class="flex items-center text-sm text-slate-600 gap-2.5 group/link">
-                                <div class="w-6 flex justify-center text-slate-400 group-hover/link:text-brand-500 transition-colors"><i class="fa-solid fa-phone text-xs"></i></div>
-                                <a href="tel:${contact.phone}" class="hover:text-brand-600 truncate">${contact.phone}</a>
-                            </div>
-                        ` : ''}
-                        ${contact.email ? `
-                            <div class="flex items-center text-sm text-slate-600 gap-2.5 group/link">
-                                <div class="w-6 flex justify-center text-slate-400 group-hover/link:text-brand-500 transition-colors"><i class="fa-regular fa-envelope text-xs"></i></div>
-                                <a href="mailto:${contact.email}" class="hover:text-brand-600 truncate">${contact.email}</a>
-                            </div>
-                        ` : ''}
-                        ${!contact.phone && !contact.email ? '<p class="text-xs text-slate-400 italic py-1">Sem contactos adicionais</p>' : ''}
-                    </div>
-                `;
-                return div;
-            },
-
-            openContactModal(contact = null) {
-                const modal = document.getElementById('contactModal');
-                const form = document.getElementById('contactForm');
-                
-                form.reset();
-                document.getElementById('aiProcessingState').classList.add('hidden');
-                
-                if (contact) {
-                    document.getElementById('modalTitle').textContent = 'Editar Contacto';
-                    document.getElementById('contactId').value = contact.id;
-                    document.getElementById('inputName').value = contact.name || '';
-                    document.getElementById('inputCompany').value = contact.company || '';
-                    document.getElementById('inputPhone').value = contact.phone || '';
-                    document.getElementById('inputEmail').value = contact.email || '';
-                } else {
-                    document.getElementById('modalTitle').textContent = 'Novo Contacto';
-                    document.getElementById('contactId').value = '';
-                }
-
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            },
-
-            closeContactModal() {
-                const modal = document.getElementById('contactModal');
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            },
-
-            showLoading(show) {
-                document.getElementById('loadingState').style.display = show ? 'flex' : 'none';
-                if(show) document.getElementById('emptyState').style.display = 'none';
-            },
-
-            showToast(message, type = 'info') {
-                const container = document.getElementById('toastContainer');
-                const toast = document.createElement('div');
-                
-                const styles = {
-                    success: 'bg-slate-900 text-white border-slate-700',
-                    error: 'bg-red-50 text-red-800 border-red-200',
-                    info: 'bg-blue-50 text-blue-800 border-blue-200'
-                };
-                const icons = {
-                    success: '<i class="fa-solid fa-check text-green-400"></i>',
-                    error: '<i class="fa-solid fa-circle-exclamation text-red-500"></i>',
-                    info: '<i class="fa-solid fa-circle-info text-blue-500"></i>'
-                };
-
-                toast.className = `flex items-center gap-3 px-5 py-3 rounded-full border shadow-lg text-sm font-medium toast-enter ${styles[type]}`;
-                toast.innerHTML = `${icons[type]} <span>${message}</span>`;
-                
-                container.appendChild(toast);
-                setTimeout(() => {
-                    toast.style.opacity = '0';
-                    setTimeout(() => toast.remove(), 300);
-                }, 3000);
-            }
-        };
-
-        // Window bindings for inline HTML handlers
-        window.uiManager = uiManager;
-        window.appController = appController;
-        window.editTrigger = (id) => uiManager.openContactModal(appState.contacts.find(c => c.id === id));
-        window.deleteTrigger = (id) => appController.handleDelete(id);
-
-        /**
-         * ==========================================
-         * 4. CAMERA MANAGER (HTML5 getUserMedia)
-         * ==========================================
-         */
-        const cameraManager = {
-            stream: null,
-            facingMode: 'environment',
-
-            async openCamera() {
-                const modal = document.getElementById('cameraModal');
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-                await this.initStream();
-            },
-
-            async initStream() {
-                const video = document.getElementById('cameraVideo');
-                if (this.stream) {
-                    this.stream.getTracks().forEach(track => track.stop());
-                }
-
-                try {
-                    this.stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: this.facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
-                        audio: false
-                    });
-                    video.srcObject = this.stream;
-                } catch (error) {
-                    console.error("Camera error:", error);
-                    uiManager.showToast("Não foi possível aceder à câmara. Verifique as permissões.", "error");
-                    this.closeCamera();
-                }
-            },
-
-            switchCamera() {
-                this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
-                this.initStream();
-            },
-
-            closeCamera() {
-                const modal = document.getElementById('cameraModal');
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-                if (this.stream) {
-                    this.stream.getTracks().forEach(track => track.stop());
-                    this.stream = null;
-                }
-            },
-
-            capturePhoto() {
-                const video = document.getElementById('cameraVideo');
-                const canvas = document.getElementById('cameraCanvas');
-                
-                // Set canvas size to match video resolution
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                // Get Base64 image
-                const imageData = canvas.toDataURL('image/jpeg', 0.8);
-                
-                this.closeCamera();
-                
-                // Send to AI
-                aiManager.processBase64Image(imageData.split(',')[1], 'image/jpeg');
-            }
-        };
-        window.cameraManager = cameraManager;
-
-        /**
-         * ==========================================
-         * 5. GEMINI AI MANAGER
-         * ==========================================
-         */
-        const aiManager = {
-            async handleFileUpload(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                event.target.value = ''; // Reset input
-
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => {
-                    const base64Data = reader.result.split(',')[1];
-                    this.processBase64Image(base64Data, file.type);
-                };
-            },
-
-            async processBase64Image(base64Data, mimeType) {
-                const loader = document.getElementById('aiProcessingState');
-                const statusText = document.getElementById('aiStatusText');
-                
-                loader.classList.remove('hidden');
-                statusText.textContent = "A extrair dados com IA...";
-                
-                try {
-                    const apiKey = ""; // Injetado nativamente pela plataforma
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-                    const payload = {
-                        contents: [{
-                            parts: [
-                                { text: `Extract business card details. Return strictly a JSON object with keys: "name", "company", "phone", "email". Clean up phone numbers but keep country codes. If a field is missing, return an empty string.` },
-                                { inlineData: { mimeType: mimeType, data: base64Data } }
-                            ]
-                        }],
-                        generationConfig: { responseMimeType: "application/json" }
-                    };
-
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) throw new Error("API call failed");
-                    
-                    const result = await response.json();
-                    const jsonStr = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-                    
-                    if (jsonStr) {
-                        const data = JSON.parse(jsonStr);
-                        // Auto-fill form
-                        if(data.name) document.getElementById('inputName').value = data.name;
-                        if(data.company) document.getElementById('inputCompany').value = data.company;
-                        if(data.phone) document.getElementById('inputPhone').value = data.phone;
-                        if(data.email) document.getElementById('inputEmail').value = data.email;
-                        
-                        uiManager.showToast("Dados extraídos com sucesso! Por favor, valide a informação.", "success");
-                    }
-                } catch (error) {
-                    console.error("AI processing error:", error);
-                    uiManager.showToast("Falha ao analisar o cartão. Preencha manualmente.", "error");
-                } finally {
-                    loader.classList.add('hidden');
-                }
-            }
-        };
-        window.aiManager = aiManager;
-
-        // Bootstrap App
-        window.addEventListener('DOMContentLoaded', () => appController.init());
-
-    </script>
+    
+    <!-- Ordem correta de carregamento dos scripts -->
+    <script src="js/1_config.js"></script>
+    <script src="js/2_database.js"></script>
+    <script src="js/3_ai_vision.js"></script>
+    <script src="js/4_ui_app.js"></script>
 </body>
 </html>
