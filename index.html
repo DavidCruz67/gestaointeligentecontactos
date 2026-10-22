@@ -9,8 +9,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Tesseract.js (Engine de OCR para Leitura Automática de Cartões) -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -366,57 +364,85 @@
       reader.readAsDataURL(file);
     }
 
-    // PROCESSAMENTO OCR E EXTRAÇÃO INTELIGENTE
+    // PROCESSAMENTO OCR E EXTRAÇÃO INTELIGENTE (VIA GEMINI AI)
     async function processOCR(imageSource) {
       const loader = document.getElementById('ocrLoader');
       const progressText = document.getElementById('ocrProgressText');
       loader.classList.remove('hidden');
 
       try {
-        progressText.innerText = "A carregar motor OCR...";
-        const worker = await Tesseract.createWorker('por+eng');
+        progressText.innerText = "A analisar cartão com IA Gemini...";
         
-        progressText.innerText = "A extrair dados do cartão...";
-        const ret = await worker.recognize(imageSource);
-        await worker.terminate();
+        // Extrair o base64 e o mime type da string data URL
+        const base64Data = imageSource.split(',')[1];
+        const mimeType = imageSource.split(';')[0].split(':')[1] || 'image/jpeg';
 
-        parseAndAutoFill(ret.data.text);
+        const prompt = "Analise este cartão de visita e extraia a seguinte informação: Nome, Empresa, Número de Telefone e Endereço de Email. Devolva APENAS um objeto JSON válido. Se um campo não existir, devolva uma string vazia.";
+
+        const payload = {
+            contents: [
+                {
+                    role: "user",
+                    parts: [
+                        { text: prompt },
+                        {
+                            inlineData: {
+                                mimeType: mimeType,
+                                data: base64Data
+                            }
+                        }
+                    ]
+                }
+            ],
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "OBJECT",
+                    properties: {
+                        "name": { "type": "STRING", "description": "Nome da pessoa" },
+                        "company": { "type": "STRING", "description": "Nome da empresa" },
+                        "phone": { "type": "STRING", "description": "Número de telefone" },
+                        "email": { "type": "STRING", "description": "Endereço de email" }
+                    }
+                }
+            }
+        };
+
+        const apiKey = ""; // A plataforma preenche automaticamente a chave no runtime
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na API Gemini: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts.length > 0) {
+            const jsonText = result.candidates[0].content.parts[0].text;
+            const data = JSON.parse(jsonText);
+
+            // Preenchimento Automático nos Campos do Formulário
+            document.getElementById('inputName').value = data.name || '';
+            document.getElementById('inputCompany').value = data.company || '';
+            document.getElementById('inputPhone').value = data.phone || '';
+            document.getElementById('inputEmail').value = data.email || '';
+        } else {
+            throw new Error("Formato de resposta inesperado da IA.");
+        }
+
       } catch (err) {
-        alert("Não foi possível analisar o cartão automaticamente. Pode preencher manualmente.");
+        alert("Não foi possível analisar o cartão com IA. Pode preencher manualmente.");
         console.error(err);
       } finally {
         loader.classList.add('hidden');
+        document.getElementById('ocrProgressText').innerText = "A analisar cartão de visita..."; // Reset text
       }
-    }
-
-    // PREENCHIMENTO AUTOMÁTICO DO FORMULÁRIO COM O TEXTO EXTRAÍDO
-    function parseAndAutoFill(text) {
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      
-      let email = '';
-      let phone = '';
-      let company = '';
-      let name = '';
-
-      // Tenta encontrar Email
-      const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-      if (emailMatch) email = emailMatch[0];
-
-      // Tenta encontrar Telefone
-      const phoneMatch = text.match(/(\+?\d{1,4}[\s-]?)?\(?\d{2,4}\)?[\s-]?\d{3,4}[\s-]?\d{3,4}/);
-      if (phoneMatch) phone = phoneMatch[0];
-
-      // Filtra linhas para tentar encontrar Nome e Empresa
-      const cleanLines = lines.filter(l => !l.includes(email) && !l.includes(phone) && l.length > 2);
-      
-      if (cleanLines.length > 0) name = cleanLines[0];
-      if (cleanLines.length > 1) company = cleanLines[1];
-
-      // Preenchimento Automático nos Campos do Formulário
-      document.getElementById('inputName').value = name;
-      document.getElementById('inputCompany').value = company;
-      document.getElementById('inputPhone').value = phone;
-      document.getElementById('inputEmail').value = email;
     }
 
     // SIMULAÇÃO DE LEITURA PARA DEMO RÁPIDA
