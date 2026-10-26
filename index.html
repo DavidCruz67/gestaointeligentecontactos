@@ -30,7 +30,6 @@
   </script>
 
   <style>
-    /* Removed .mirror class to fix rear camera bug on mobile */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -83,7 +82,7 @@
   <!-- ÁREA PRINCIPAL -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
     
-    <!-- COLUNA ESQUERDA: PESQUISA E LISTA DE CONTACTOS (7 COLUNAS) -->
+    <!-- COLUNA ESQUERDA: PESQUISA, FILTROS E LISTA DE CONTACTOS (7 COLUNAS) -->
     <div class="lg:col-span-7 flex flex-col gap-4 order-2 lg:order-1">
       
       <div class="bg-white border border-slate-200 rounded-3xl p-5 flex flex-col gap-4 shadow-sm min-h-[500px]">
@@ -102,8 +101,17 @@
           </div>
         </div>
 
+        <!-- FILTROS POR CATEGORIA -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <span class="text-slate-400 font-semibold text-[11px] mr-1">Filtrar:</span>
+          <button onclick="setCategoryFilter('Todos')" id="filterBtn-Todos" class="px-3 py-1.5 rounded-xl font-bold bg-blue-600 text-white transition shadow-sm whitespace-nowrap">Todos</button>
+          <button onclick="setCategoryFilter('Potencial Cliente')" id="filterBtn-Potencial" class="px-3 py-1.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition whitespace-nowrap">Potencial Cliente</button>
+          <button onclick="setCategoryFilter('Cliente')" id="filterBtn-Cliente" class="px-3 py-1.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition whitespace-nowrap">Cliente</button>
+          <button onclick="setCategoryFilter('Fornecedor')" id="filterBtn-Fornecedor" class="px-3 py-1.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition whitespace-nowrap">Fornecedor</button>
+        </div>
+
         <!-- LISTA -->
-        <div id="contactsList" class="flex flex-col gap-3 overflow-y-auto max-h-[700px] pr-1">
+        <div id="contactsList" class="flex flex-col gap-3 overflow-y-auto max-h-[640px] pr-1">
           <!-- Inseridos por JS -->
         </div>
       </div>
@@ -127,7 +135,6 @@
 
         <!-- ECRÃ DE PRÉ-VISUALIZAÇÃO / CÂMARA -->
         <div class="relative w-full bg-slate-100 border border-slate-200 rounded-2xl overflow-hidden aspect-video flex items-center justify-center shadow-inner">
-          <!-- Mirror class removed to fix mobile back camera issue -->
           <video id="webcam" autoplay playsinline class="w-full h-full object-cover hidden"></video>
 
           <div id="cameraOffPlaceholder" class="flex flex-col items-center justify-center text-center p-4 space-y-2">
@@ -195,6 +202,19 @@
             </div>
           </div>
 
+          <!-- CAMPO CATEGORIA ADICIONADO -->
+          <div>
+            <label class="text-xs font-bold text-slate-600 mb-1 block">Categoria</label>
+            <div class="relative">
+              <i data-lucide="tag" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none"></i>
+              <select id="inputCategory" required class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all appearance-none">
+                <option value="Potencial Cliente">Potencial Cliente</option>
+                <option value="Cliente">Cliente</option>
+                <option value="Fornecedor">Fornecedor</option>
+              </select>
+            </div>
+          </div>
+
           <div>
             <label class="text-xs font-bold text-slate-600 mb-1 block">Telefone</label>
             <div class="relative">
@@ -243,18 +263,18 @@
         <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
           <div><strong class="text-slate-800">Cliente:</strong> Pequena empresa de serviços</div>
           <div><strong class="text-slate-800">Prazo Estimado:</strong> 3 semanas</div>
-          <div><strong class="text-slate-800">Estado:</strong> Concluído — Testes de OCR</div>
+          <div><strong class="text-slate-800">Estado:</strong> Atualizado — Categorias & Filtros</div>
           <div><strong class="text-slate-800">Suporte:</strong> Telemóvel e Computador</div>
         </div>
 
         <h4 class="font-bold text-teal-600 text-sm pt-2">Funcionalidades Implementadas</h4>
         <ul class="list-disc list-inside space-y-1 text-slate-600 pl-1 font-medium">
           <li>Leitura e análise inteligente de cartões de visita por foto ou imagem.</li>
-          <li>Preenchimento automático do formulário com dados identificados (Nome, Empresa, Telefone, Email).</li>
-          <li>Confirmação e edição manual para correção de erros de reconhecimento.</li>
-          <li>Base de dados de contactos com pesquisa por nome e empresa.</li>
-          <li>Suporte completo a dispositivos móveis e desktop (Câmara traseira corrigida).</li>
-          <li>Tema claro moderno e intuitivo com layout otimizado.</li>
+          <li>Preenchimento automático do formulário com dados identificados.</li>
+          <li>Gestão de Categoria (Potencial Cliente, Cliente, Fornecedor) no registo e edição.</li>
+          <li>Filtros rápidos por categoria para consulta de listas específicas.</li>
+          <li>Base de dados persistente em localStorage com pesquisa em tempo real.</li>
+          <li>Suporte completo a dispositivos móveis e desktop.</li>
         </ul>
       </div>
 
@@ -275,15 +295,35 @@
 
     let stream = null;
     let isCamOn = false;
+    let currentCategoryFilter = 'Todos';
     let contacts = JSON.parse(localStorage.getItem('gic_contacts')) || [
-      { id: '1', name: 'Carlos Oliveira', company: 'Soluções Comerciais Lda', phone: '+351 912 888 999', email: 'carlos@solucoes.pt' },
-      { id: '2', name: 'Ana Martins', company: 'Eventos & Feiras SA', phone: '+351 934 111 222', email: 'ana.martins@eventos.pt' }
+      { id: '1', name: 'Carlos Oliveira', company: 'Soluções Comerciais Lda', category: 'Cliente', phone: '+351 912 888 999', email: 'carlos@solucoes.pt' },
+      { id: '2', name: 'Ana Martins', company: 'Eventos & Feiras SA', category: 'Potencial Cliente', phone: '+351 934 111 222', email: 'ana.martins@eventos.pt' },
+      { id: '3', name: 'Distribuidora Ibérica', company: 'Logística Total', category: 'Fornecedor', phone: '+351 961 555 444', email: 'geral@logisticatotal.pt' }
     ];
 
     renderContacts();
 
     function openRequestModal() { document.getElementById('requestModal').classList.remove('hidden'); }
     function closeRequestModal() { document.getElementById('requestModal').classList.add('hidden'); }
+
+    // FILTRO POR CATEGORIA
+    function setCategoryFilter(category) {
+      currentCategoryFilter = category;
+      
+      const buttons = ['Todos', 'Potencial', 'Cliente', 'Fornecedor'];
+      buttons.forEach(btnKey => {
+        const btn = document.getElementById(`filterBtn-${btnKey}`);
+        if (!btn) return;
+        if ((btnKey === 'Potencial' && category === 'Potencial Cliente') || btnKey === category) {
+          btn.className = "px-3 py-1.5 rounded-xl font-bold bg-blue-600 text-white transition shadow-sm whitespace-nowrap";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition whitespace-nowrap";
+        }
+      });
+
+      renderContacts();
+    }
 
     // CÂMARA
     async function toggleCamera() {
@@ -301,7 +341,6 @@
         
         const btnText = document.getElementById('btnCamText');
         const btnIcon = document.getElementById('btnCamIcon');
-        const toggleBtn = document.getElementById('toggleCamBtn');
         
         btnText.innerText = "Desligar";
         btnIcon.setAttribute('data-lucide', 'video-off');
@@ -373,7 +412,6 @@
       try {
         progressText.innerText = "A analisar cartão com IA Gemini...";
         
-        // Extrair o base64 e o mime type da string data URL
         const base64Data = imageSource.split(',')[1];
         const mimeType = imageSource.split(';')[0].split(':')[1] || 'image/jpeg';
 
@@ -408,7 +446,7 @@
             }
         };
 
-        const apiKey = ""; // A plataforma preenche automaticamente a chave no runtime
+        const apiKey = ""; 
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
         const response = await fetch(apiUrl, {
@@ -427,11 +465,11 @@
             const jsonText = result.candidates[0].content.parts[0].text;
             const data = JSON.parse(jsonText);
 
-            // Preenchimento Automático nos Campos do Formulário
             document.getElementById('inputName').value = data.name || '';
             document.getElementById('inputCompany').value = data.company || '';
             document.getElementById('inputPhone').value = data.phone || '';
             document.getElementById('inputEmail').value = data.email || '';
+            document.getElementById('inputCategory').value = 'Potencial Cliente'; // Categoria sugerida por defeito para novos cartões
         } else {
             throw new Error("Formato de resposta inesperado da IA.");
         }
@@ -441,7 +479,7 @@
         console.error(err);
       } finally {
         loader.classList.add('hidden');
-        document.getElementById('ocrProgressText').innerText = "A analisar cartão de visita..."; // Reset text
+        document.getElementById('ocrProgressText').innerText = "A analisar cartão de visita...";
       }
     }
 
@@ -454,6 +492,7 @@
         loader.classList.add('hidden');
         document.getElementById('inputName').value = "Miguel Ribeiro";
         document.getElementById('inputCompany').value = "Inovação Comercial SA";
+        document.getElementById('inputCategory').value = "Potencial Cliente";
         document.getElementById('inputPhone').value = "+351 925 444 333";
         document.getElementById('inputEmail').value = "miguel.ribeiro@inovacao.pt";
       }, 1000);
@@ -465,18 +504,19 @@
       const id = document.getElementById('contactId').value;
       const name = document.getElementById('inputName').value.trim();
       const company = document.getElementById('inputCompany').value.trim();
+      const category = document.getElementById('inputCategory').value;
       const phone = document.getElementById('inputPhone').value.trim();
       const email = document.getElementById('inputEmail').value.trim();
 
       if (id) {
         const index = contacts.findIndex(c => c.id === id);
         if (index !== -1) {
-          contacts[index] = { id, name, company, phone, email };
+          contacts[index] = { id, name, company, category, phone, email };
         }
       } else {
         contacts.unshift({
           id: Date.now().toString(),
-          name, company, phone, email
+          name, company, category, phone, email
         });
       }
 
@@ -492,10 +532,12 @@
       document.getElementById('contactId').value = contact.id;
       document.getElementById('inputName').value = contact.name;
       document.getElementById('inputCompany').value = contact.company;
+      document.getElementById('inputCategory').value = contact.category || 'Potencial Cliente';
       document.getElementById('inputPhone').value = contact.phone;
       document.getElementById('inputEmail').value = contact.email;
 
       document.getElementById('formTitle').innerText = "Editar Contacto";
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function deleteContact(id) {
@@ -512,50 +554,69 @@
       document.getElementById('formTitle').innerText = "Dados Extraídos";
     }
 
+    // CORES PARA AS ESTRUTURAS DE CATEGORIA
+    function getCategoryBadgeStyle(cat) {
+      switch(cat) {
+        case 'Cliente':
+          return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        case 'Potencial Cliente':
+          return 'bg-amber-50 text-amber-700 border-amber-200';
+        case 'Fornecedor':
+          return 'bg-purple-50 text-purple-700 border-purple-200';
+        default:
+          return 'bg-blue-50 text-blue-700 border-blue-200';
+      }
+    }
+
     function renderContacts() {
       const list = document.getElementById('contactsList');
       const search = document.getElementById('searchInput').value.toLowerCase();
       
-      const filtered = contacts.filter(c => 
-        c.name.toLowerCase().includes(search) || 
-        c.company.toLowerCase().includes(search)
-      );
+      const filtered = contacts.filter(c => {
+        const matchesSearch = c.name.toLowerCase().includes(search) || c.company.toLowerCase().includes(search);
+        const matchesCategory = currentCategoryFilter === 'Todos' || c.category === currentCategoryFilter;
+        return matchesSearch && matchesCategory;
+      });
 
-      document.getElementById('contactCount').innerText = `${filtered.length} contactos guardados`;
+      document.getElementById('contactCount').innerText = `${filtered.length} contactos encontrados`;
 
       if (filtered.length === 0) {
         list.innerHTML = `
           <div class="text-center py-10 text-slate-400 font-medium text-xs">
-            Nenhum contacto encontrado.
+            Nenhum contacto encontrado para os critérios selecionados.
           </div>
         `;
         return;
       }
 
-      // Updated classes inside JS to match light theme
-      list.innerHTML = filtered.map(c => `
-        <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-blue-300 hover:shadow-md transition-all shadow-sm">
-          <div class="space-y-1">
-            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-              ${c.name}
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">${c.company}</span>
-            </h3>
-            <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
-              <span class="flex items-center gap-1"><i data-lucide="phone" class="w-3 h-3 text-teal-500"></i> ${c.phone}</span>
-              <span class="flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3 text-teal-500"></i> ${c.email}</span>
+      list.innerHTML = filtered.map(c => {
+        const cat = c.category || 'Potencial Cliente';
+        const badgeStyle = getCategoryBadgeStyle(cat);
+        return `
+          <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-blue-300 hover:shadow-md transition-all shadow-sm">
+            <div class="space-y-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="text-sm font-bold text-slate-800">${c.name}</h3>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold border border-slate-200">${c.company}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold border ${badgeStyle}">${cat}</span>
+              </div>
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
+                <span class="flex items-center gap-1"><i data-lucide="phone" class="w-3 h-3 text-teal-500"></i> ${c.phone}</span>
+                <span class="flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3 text-teal-500"></i> ${c.email}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 self-end sm:self-center">
+              <button onclick="editContact('${c.id}')" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-slate-500 hover:text-blue-600 transition-colors">
+                <i data-lucide="pencil" class="w-4 h-4"></i>
+              </button>
+              <button onclick="deleteContact('${c.id}')" class="p-2 rounded-xl bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-500 transition-colors">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
             </div>
           </div>
-
-          <div class="flex items-center gap-2 self-end sm:self-center">
-            <button onclick="editContact('${c.id}')" class="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-slate-500 hover:text-blue-600 transition-colors">
-              <i data-lucide="pencil" class="w-4 h-4"></i>
-            </button>
-            <button onclick="deleteContact('${c.id}')" class="p-2 rounded-xl bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-500 transition-colors">
-              <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
       lucide.createIcons();
     }
